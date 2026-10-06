@@ -1,0 +1,42 @@
+﻿@model IEnumerable<餐廳.Models.SupplyRecord>
+
+@{
+    ViewData["Title"] = "進貨紀錄總覽";
+}
+
+<div class="container mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>供貨紀錄總覽</h2>
+        <a asp-controller="InventoryItems" asp-action="Index" class="btn btn-primary">返回庫存管理</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>日期</th>
+                        <th>店面</th>
+                        <th>品項</th>
+                        <th>供應商</th>
+                        <th>供貨數量</th>
+                        <th>總價</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.SupplyDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td>@item.StoreName</td>
+                            <td>@item.ItemName</td>
+                            <td>@item.Supplier</td>
+                            <td>@item.Quantity</td>
+                            <td>NT$ @item.TotalPrice.ToString("N0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

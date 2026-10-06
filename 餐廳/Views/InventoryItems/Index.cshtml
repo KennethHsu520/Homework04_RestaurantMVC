@@ -1,0 +1,149 @@
+@model IEnumerable<餐廳.Models.InventoryItem>
+
+@{
+    ViewData["Title"] = "餐廳庫存與供貨系統";
+    var stores = ViewBag.Stores as List<string> ?? new List<string>();
+    var categories = ViewBag.Categories as List<string> ?? new List<string>();
+    var lowStockItems = ViewBag.LowStockItems as List<餐廳.Models.InventoryItem> ?? new List<餐廳.Models.InventoryItem>();
+}
+
+<div class="container-fluid mt-3">
+    <h2 class="mb-4">餐廳庫存與供貨系統</h2>
+
+    <!-- 篩選器列 -->
+    <form method="get" class="row g-3 mb-4 align-items-center">
+        <div class="col-auto">
+            <label class="col-form-label fw-bold">選擇店面：</label>
+        </div>
+        <div class="col-auto">
+            <select name="selectedStore" class="form-select" onchange="this.form.submit()">
+                <option value="">-- 全部店面 --</option>
+                @foreach (var store in stores)
+                {
+                    <option value="@store" selected="@(ViewBag.SelectedStore == store)">@store</option>
+                }
+            </select>
+        </div>
+
+        <div class="col-auto">
+            <label class="col-form-label fw-bold">選擇分類：</label>
+        </div>
+        <div class="col-auto">
+            <select name="selectedCategory" class="form-select" onchange="this.form.submit()">
+                <option value="">-- 全部分類 --</option>
+                @foreach (var cat in categories)
+                {
+                    <option value="@cat" selected="@(ViewBag.SelectedCategory == cat)">@cat</option>
+                }
+            </select>
+        </div>
+
+        <div class="col-auto ms-auto">
+            <a asp-action="Create" class="btn btn-success">+ 新增品項</a>
+            <a asp-controller="SupplyRecords" asp-action="Index" class="btn btn-outline-secondary">查看進貨紀錄</a>
+        </div>
+    </form>
+
+    <!-- 庫存列表區 -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">庫存清單</h5>
+        </div>
+        <div class="card-body p-0 table-responsive">
+            <table class="table table-hover table-bordered align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>店面</th>
+                        <th>分類</th>
+                        <th>品項</th>
+                        <th>現有數量</th>
+                        <th>供貨標準</th>
+                        <th>供貨價格</th>
+                        <th>單位</th>
+                        <th>供應商</th>
+                        <th style="width: 280px;">快速操作</th>
+                        <th>管理</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        var isLowStock = item.CurrentQuantity < item.MinRequiredQuantity;
+                        <tr class="@(isLowStock ? "table-danger" : "")">
+                            <td>@item.StoreName</td>
+                            <td><span class="badge bg-secondary">@item.Category</span></td>
+                            <td>
+                                <strong>@item.ItemName</strong>
+                                @if (isLowStock)
+                                {
+                                    <span class="badge bg-danger ms-1">低庫存</span>
+                                }
+                            </td>
+                            <td><span class="fw-bold fs-5">@item.CurrentQuantity</span></td>
+                            <td>@item.MinRequiredQuantity</td>
+                            <td>NT$ @item.UnitPrice</td>
+                            <td>@item.Unit</td>
+                            <td>@item.Supplier</td>
+                            <td>
+                                <div class="d-flex gap-1 mb-1">
+                                    <form asp-action="UpdateQuantity" method="post" class="d-flex gap-1">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <input type="number" name="newQuantity" value="@item.CurrentQuantity" min="0" class="form-control form-control-sm" style="width: 80px;" />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">改庫存</button>
+                                    </form>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <form asp-action="Restock" method="post" class="d-flex gap-1">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <input type="number" name="orderQuantity" value="1" min="1" class="form-control form-control-sm" style="width: 80px;" />
+                                        <button type="submit" class="btn btn-sm btn-success text-nowrap">進貨入庫</button>
+                                    </form>
+                                </div>
+                            </td>
+                            <td>
+                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-warning">編輯</a>
+                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-danger">刪除</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 自動產出缺貨叫貨單 -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="card-title mb-0">產出供貨清單（自動計算缺貨）</h5>
+        </div>
+        <div class="card-body">
+            @if (!lowStockItems.Any())
+            {
+                <div class="alert alert-success mb-0">目前庫存充足，無缺貨品項！</div>
+            }
+            else
+            {
+                var groupedBySupplier = lowStockItems.GroupBy(i => new { i.StoreName, i.Supplier });
+                <div class="row">
+                    @foreach (var group in groupedBySupplier)
+                    {
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-warning">
+                                <div class="card-header fw-bold">
+                                    【@group.Key.StoreName - @group.Key.Supplier 供貨單】
+                                </div>
+                                <div class="card-body">
+                                    <pre class="bg-light p-2 rounded mb-0"><code>@foreach (var item in group) {
+var need = item.MinRequiredQuantity - item.CurrentQuantity;
+@:- @item.ItemName : 建議補貨 @need @item.Unit
+}
+</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
